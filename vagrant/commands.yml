@@ -1,0 +1,2 @@
+- "sudo yum -y install net-tools ntp wget vim"
+- "sudo systemctl enable ntpd && sudo systemctl start ntpd"

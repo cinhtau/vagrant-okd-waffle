@@ -1,0 +1,74 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+require 'yaml'
+
+OPENSHIFT_RELEASE = "3.11"
+OPENSHIFT_ANSIBLE_BRANCH = "release-#{OPENSHIFT_RELEASE}"
+NETWORK_BASE = "192.168.90"
+INTEGRATION_START_SEGMENT = 137
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "centos/7"
+  config.vm.box_check_update = false
+
+  if Vagrant.has_plugin?('landrush')
+    config.landrush.enabled = true
+    config.landrush.tld = 'cinhtau.io'
+    config.landrush.guest_redirect_dns = false
+  end
+
+  config.hostmanager.enabled = true
+  config.hostmanager.manage_host = true
+  config.hostmanager.ignore_private_ip = false
+
+  config.vm.provision "shell", inline: <<-SHELL
+    /vagrant/all.sh #{OPENSHIFT_RELEASE}
+  SHELL
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+    vb.cpus   = "1"
+  end
+
+  # Define nodes
+  (1..2).each do |i|
+    config.vm.define "node0#{i}" do |node|
+      node.vm.network "private_network", ip: "#{NETWORK_BASE}.#{INTEGRATION_START_SEGMENT + i}"
+      node.vm.hostname = "node0#{i}.cinhtau.io"
+
+      if "#{i}" == "1"
+        node.hostmanager.aliases = %w(lb.cinhtau.io)
+      end
+    end
+  end
+
+  # Define master, does heavy work, assign special resources
+  config.vm.define "master", primary: true do |node|
+    node.vm.network "private_network", ip: "#{NETWORK_BASE}.#{INTEGRATION_START_SEGMENT}"
+    node.vm.hostname = "master.cinhtau.io"
+    node.hostmanager.aliases = %w(etcd.cinhtau.io nfs.cinhtau.io)
+
+    node.vm.provider "virtualbox" do |vb|
+      vb.memory = "4096"
+      vb.cpus   = "4"
+    end
+
+    node.vm.provision "shell", inline: <<-SHELL
+      /vagrant/master.sh #{OPENSHIFT_RELEASE} #{OPENSHIFT_ANSIBLE_BRANCH} #{NETWORK_BASE}
+    SHELL
+
+    # Deploy private keys of each node to master
+    if File.exist?(".vagrant/machines/master/virtualbox/private_key")
+      node.vm.provision "master-key", type: "file", run: "never", source: ".vagrant/machines/master/virtualbox/private_key", destination: "/home/vagrant/.ssh/master.key"
+    end
+
+    if File.exist?(".vagrant/machines/node01/virtualbox/private_key")
+      node.vm.provision "node01-key", type: "file", run: "never", source: ".vagrant/machines/node01/virtualbox/private_key", destination: "/home/vagrant/.ssh/node01.key"
+    end
+
+    if File.exist?(".vagrant/machines/node02/virtualbox/private_key")
+      node.vm.provision "node02-key", type: "file", run: "never", source: ".vagrant/machines/node02/virtualbox/private_key", destination: "/home/vagrant/.ssh/node02.key"
+    end
+  end
+end
