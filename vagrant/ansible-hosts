@@ -28,7 +28,6 @@ openshift_master_htpasswd_users={'admin': '$apr1$gfaL16Jf$c.5LAvg3xNDVQTkk6HpGB1
 openshift_disable_check=disk_availability,memory_availability,docker_storage,docker_image_availability
 openshift_docker_options=" --selinux-enabled --log-driver=journald --storage-driver=overlay --registry-mirror=http://4a0fee72.m.daocloud.io "
 
-
 # openshift_enable_service_catalog=false
 #template_service_broker_install=false
 
@@ -42,7 +41,18 @@ openshift_docker_options=" --selinux-enabled --log-driver=journald --storage-dri
 # openshift_registry_selector='node-role.kubernetes.io/infra=true'
 
 # default subdomain to use for exposed routes
-openshift_master_default_subdomain=openshift.cinhtau.io
+openshift_master_default_subdomain=apps.cinhtau.io
+
+# logging
+openshift_logging_install_logging=false
+openshift_logging_es_cluster_size=1
+openshift_logging_es_nodeselector={"node-role.kubernetes.io/compute": "true"}
+openshift_logging_kibana_nodeselector={"node-role.kubernetes.io/compute": "true"}
+openshift_logging_curator_nodeselector={"node-role.kubernetes.io/compute": "true"}
+openshift_logging_fluentd_nodeselector={"node-role.kubernetes.io/compute": "true"}
+# openshift_logging_storage_kind=dynamic
+openshift_logging_es_memory_limit=1G
+# openshift_logging_purge_logging=true
 
 # host group for masters
 [masters]
